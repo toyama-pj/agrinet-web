@@ -3,26 +3,17 @@ import type { User } from "~/types/auth"
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return
 
-  const authToken = useAuthToken()
-  const token = authToken.value
-
-  if (!token) {
-    if (to.path !== "/login") {
-      return navigateTo("/login")
-    }
-    return
-  }
+  const { apiFetch } = useApi()
+  const userInfo = useUserInfo()
 
   try {
-    const { apiFetch } = useApi()
-    const userInfo = useUserInfo()
     userInfo.value = await apiFetch<User>("/cfg/me")
 
     if (to.path === "/login") {
-      return navigateTo("/main")
+      return navigateTo("/dashboard")
     }
   } catch {
-    authToken.value = null
+    userInfo.value = null
 
     if (to.path !== "/login") {
       return navigateTo("/login")

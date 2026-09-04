@@ -1,71 +1,174 @@
-import type { NamespacePermission } from "~/types/namespace"
+import type { Namespace, NamespaceMember, Metric } from "~/types/namespace"
+import type { Device } from "~/types/device"
+import type {
+  Measurement,
+  MeasurementResponse,
+} from "~/types/measurement"
 
-export async function getNamespacePermission() {
+const metricLabels: Record<string, [string, string]> = {
+  temperature: ["気温", "°C"],
+  relative_humidity: ["湿度", "%"],
+  barometric_pressure: ["気圧", "hPa"],
+  illuminance: ["照度", "lx"],
+  presence: ["人感", ""],
+  digital_input: ["デジタル入力", ""],
+  digital_output: ["デジタル出力", ""],
+  analog_input: ["アナログ入力", ""],
+  analog_output: ["アナログ出力", ""],
+  accelerometer: ["加速度", "g"],
+  gyrometer: ["角速度", "°/s"],
+  gps: ["位置", ""],
+}
+
+export function useNamespace() {
   const { apiFetch } = useApi()
 
-  return await apiFetch<NamespacePermission[]>(
-    "/cfg/me/namespace"
-  )
-}
+  const namespace = ref<Namespace | null>(null)
+  const devices = ref<Device[]>([])
+  const measurements = ref<Measurement[]>([])
 
-export function useNamespacePermission() {
-  return useState<NamespacePermission[]>(
-    "namespace-permission",
-    () => []
-  )
-}
+  const busy = ref(false)
+  const errors = ref<string[]>([])
+  const toastMessage = ref("")
 
-export function useNamespaces(namespacePermission: NamespacePermission[]) {
-    return (namespacePermission ?? []).map((item: NamespacePermission, index) => ({
-    id: item.namespace_id,
-    displayName: `名前空間${index + 1}`,
-    grantType: item.grant_type,
-  }))
-}
+  const metrics = computed(() => {
+    return groupMetrics(measurements.value)
+  })
 
-export function useLoadNamespacePermission() {
+  const canManage = computed(() => {
+    return namespace.value?.grant_type === "admin"
+  })
 
-  const namespacePermission = useNamespacePermission()
-
-  const loading = ref(false)
-
-  const loadError = ref(false)
-
-  async function loadNamespaces(force = false) {
-
-    if (
-      !force &&
-      namespacePermission.value.length > 0
-    ) {
-      return
+  /*
+  function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message
     }
 
-    loading.value = true
-    loadError.value = false
+    return "予期しないエラーが発生しました"
+  }
 
-    try {
+  function addError(error: unknown) {
+    errors.value.push(getErrorMessage(error))
+  }
 
-      namespacePermission.value =
-        await getNamespacePermission()
+  function showToast(message: string) {
+    toastMessage.value = message
 
-    } catch (e) {
+    setTimeout(() => {
+      toastMessage.value = ""
+    }, 2800)
+  }
+  */
 
-      console.error(e)
+  async function loadNamespace(namespaceId: string) {
+  const [namespaceResponse, deviceResponse, measurementResponse] =
+    await Promise.all([
+      apiFetch<Namespace[]>(
+        "/cfg/me/namespace?limit=50",
+      ),
+      apiFetch<{ data: Device[] }>(
+        `/namespaces/${namespaceId}/devices`,
+      ),
+      apiFetch<MeasurementResponse>(
+        `/namespaces/${namespaceId}/measurements?limit=500`,
+      ),
+    ])
 
-      loadError.value = true
+  const foundNamespace = namespaceResponse.find(
+    item => item.namespace_id === namespaceId,
+  )
 
-    } finally {
+  if (!foundNamespace) {
+    throw new Error("Namespaceが見つかりません")
+  }
 
-      loading.value = false
+  namespace.value = foundNamespace
+  devices.value = deviceResponse.data
+  measurements.value = measurementResponse.data
+}
 
+  function groupMetrics(
+    values: Measurement[],
+  ): Metric[] {
+    const groups = new Map<string, Measurement[]>()
+
+    for (const measurement of values) {
+      const key =
+        `${measurement.device_id}:${measurement.channel}:${measurement.name}`
+
+      if (!groups.has(key)) {
+        groups.set(key, [])
+      }
+
+      groups.get(key)!.push(measurement)
     }
 
+    return [...groups.values()]
+      .map(values => ({
+        latest: values[0]!,
+        values,
+      }))
+      .sort(
+        (a, b) =>
+          new Date(b.latest.received_at).getTime() -
+          new Date(a.latest.received_at).getTime(),
+      )
+  }
+
+  function formatValue(value: unknown): string {
+    if (typeof value === "number") {
+      return value.toFixed(1)
+    }
+
+    if (typeof value === "boolean") {
+      return value ? "ON" : "OFF"
+    }
+
+    if (value && typeof value === "object") {
+      return Object.values(value)
+        .map(item =>
+          typeof item === "number"
+            ? item.toFixed(2)
+            : String(item),
+        )
+        .join(" / ")
+    }
+
+    return String(value ?? "--")
+  }
+
+  function getMetricLabel(name: string): string {
+    return metricLabels[name]?.[0] ?? name
+  }
+
+  function getMetricUnit(name: string): string {
+    return metricLabels[name]?.[1] ?? ""
+  }
+
+  function getDevice(measurement: Measurement): Device | undefined {
+    return devices.value.find(
+      device => device.id === measurement.device_id,
+    )
   }
 
   return {
-    namespacePermission,
-    loading,
-    loadError,
-    loadNamespaces
+    namespace,
+    devices,
+    measurements,
+
+    busy,
+    errors,
+    toastMessage,
+
+    metrics,
+    canManage,
+
+    loadNamespace,
+
+    formatValue,
+    getMetricLabel,
+    getMetricUnit,
+    getDevice,
   }
 }

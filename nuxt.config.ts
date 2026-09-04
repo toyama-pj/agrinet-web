@@ -11,5 +11,9 @@ export default defineNuxtConfig({
     public: {
       apiBase: ''
     }
-  }
+  },
+
+  css: [
+    "@/assets/css/styles.css"
+  ]
 })
