@@ -8,7 +8,6 @@ const {
   metrics,
   busy,
   errors,
-  toastMessage,
   canManage,
   loadNamespace,
   formatValue,
@@ -16,6 +15,10 @@ const {
   getMetricUnit,
   getDevice,
 } = useNamespace()
+
+
+
+const { logout } = useAuth()
 
 const namespaceId = computed(() => {
   return String(route.params.id)
@@ -62,7 +65,7 @@ function sparkline(
 
   const width = 120
   const height = 36
-  const padding = 2
+  const padding = 5
 
   const min = Math.min(...numericValues)
   const max = Math.max(...numericValues)
@@ -85,6 +88,8 @@ function sparkline(
     })
     .join(" ")
 
+  const last = points.split(" ").at(-1)!.split(",")
+
   return `
     <svg
       viewBox="0 0 ${width} ${height}"
@@ -98,6 +103,11 @@ function sparkline(
         stroke-width="1.5"
         stroke-linecap="round"
         stroke-linejoin="round"
+      />
+      <circle
+        cx="${last[0]}"
+        cy="${last[1]}"
+        r="3"
       />
     </svg>
   `
@@ -119,6 +129,7 @@ async function handleAddDevice() {
   )
 }
 
+
 const loading = ref(true)
 
 onMounted(async () => {
@@ -134,49 +145,112 @@ onMounted(async () => {
     loading.value = false
   }
 })
+/*
+import type { Metric } from "~/types/namespace"
+
+const dummyMetrics: Metric[] = [
+  {
+    latest: {
+      device_id: "dummy-device-1",
+      namespace_id: "dummy-namespace",
+      gateway_eui: "dummy-gateway",
+      received_at: new Date().toISOString(),
+      frame_counter: 10,
+      channel: 1,
+      type: 103,
+      name: "temperature",
+      value: 24.5,
+      id: "dummy-1",
+    },
+    values: [
+      {
+        device_id: "dummy-device-1",
+        namespace_id: "dummy-namespace",
+        gateway_eui: "dummy-gateway",
+        received_at: "2026-09-05T10:00:00Z",
+        frame_counter: 1,
+        channel: 1,
+        type: 103,
+        name: "temperature",
+        value: 21.0,
+        id: "dummy-1",
+      },
+      {
+        device_id: "dummy-device-1",
+        namespace_id: "dummy-namespace",
+        gateway_eui: "dummy-gateway",
+        received_at: "2026-09-05T10:05:00Z",
+        frame_counter: 2,
+        channel: 1,
+        type: 103,
+        name: "temperature",
+        value: 22.5,
+        id: "dummy-2",
+      },
+      {
+        device_id: "dummy-device-1",
+        namespace_id: "dummy-namespace",
+        gateway_eui: "dummy-gateway",
+        received_at: "2026-09-05T10:10:00Z",
+        frame_counter: 3,
+        channel: 1,
+        type: 103,
+        name: "temperature",
+        value: 24.5,
+        id: "dummy-3",
+      },
+      {
+        device_id: "dummy-device-1",
+        namespace_id: "dummy-namespace",
+        gateway_eui: "dummy-gateway",
+        received_at: "2026-09-05T10:15:00Z",
+        frame_counter: 4,
+        channel: 1,
+        type: 103,
+        name: "temperature",
+        value: 23.0,
+        id: "dummy-4",
+      },
+      {
+        device_id: "dummy-device-1",
+        namespace_id: "dummy-namespace",
+        gateway_eui: "dummy-gateway",
+        received_at: "2026-09-05T10:20:00Z",
+        frame_counter: 5,
+        channel: 1,
+        type: 103,
+        name: "temperature",
+        value: 26.0,
+        id: "dummy-5",
+      },
+    ],
+  },
+]
+const metrics = ref(dummyMetrics)
+*/
 </script>
 
 <template>
   <div class="namespace-page">
     <!-- Header -->
-    <header class="header">
-      <div class="header-main">
-        <button
-          class="button secondary small"
-          type="button"
-          @click="handleBack"
-        >
-          ← 戻る
-        </button>
-
-        <h1>
-          {{ namespace?.name || "Namespace" }}
-        </h1>
-      </div>
-
+    <AppHeader
+      :title="`${namespace?.name || 'Namespace'}⌄`"
+      :back="true"
+      @back="handleBack"
+    >
       <div class="header-actions">
         <button
           class="button small"
           type="button"
-          @click="handleBack"
+          @click="logout"
         >
-          ダッシュボード
+          ログアウト
         </button>
       </div>
-    </header>
+    </AppHeader>
 
     <!-- Error -->
-    <div
-      v-if="errors.length"
-      class="error-banner"
-    >
-      <p
-        v-for="(error, index) in errors"
-        :key="index"
-      >
-        {{ error }}
-      </p>
-    </div>
+    <ErrorBanner :errors="errors" />
 
     <!-- Loading -->
     <section
@@ -216,59 +290,51 @@ onMounted(async () => {
       </div>
 
       <!-- Metrics -->
-      <div
-        v-if="metrics.length"
-        class="metrics"
+      <article
+        v-for="metric in metrics"
+        :key="`${metric.latest.device_id}:${metric.latest.channel}:${metric.latest.name}`"
+        class="metric-card"
       >
-        <article
-          v-for="metric in metrics"
-          :key="`${metric.latest.device_id}:${metric.latest.channel}:${metric.latest.name}`"
-          class="metric-card"
-        >
-          <div class="metric-card-header">
-            <div>
-              <h2>
-                {{ getMetricLabel(metric.latest.name) }}
-              </h2>
-
-              <small>
-                {{
-                  getDevice(metric.latest)?.name ||
-                  getDevice(metric.latest)?.dev_eui ||
-                  "Device"
-                }}
-              </small>
-            </div>
-
-            <span class="metric-unit">
-              {{ getMetricUnit(metric.latest.name) }}
+        <div>
+          <div class="metric-title">
+            {{ getMetricLabel(metric.latest.name) }}
+            <span v-if="getMetricUnit(metric.latest.name)">
+              ({{ getMetricUnit(metric.latest.name) }})
             </span>
           </div>
 
           <div class="metric-value">
             {{ formatValue(metric.latest.value) }}
-            <span>
+            <span class="metric-unit">
               {{ getMetricUnit(metric.latest.name) }}
             </span>
           </div>
 
-          <div class="metric-card-footer">
-            <small>
-              {{ formatAgo(metric.latest.received_at) }}
-            </small>
+          <div class="metric-meta">
+            <span class="device-eui">
+              {{
+                getDevice(metric.latest)?.dev_eui ||
+                getDevice(metric.latest)?.name ||
+                "Device"
+              }}
+            </span>
+            -
+            {{ formatAgo(metric.latest.received_at) }}
           </div>
+        </div>
 
-          <div
-            v-if="sparkline(metric.values)"
-            class="sparkline"
-            v-html="sparkline(metric.values)"
-          />
-        </article>
-      </div>
+        <div
+          v-if="sparkline(metric.values)"
+          class="sparkline"
+          v-html="sparkline(metric.values)"
+        />
 
+        <span class="chevron">›</span>
+      </article>
+      
       <!-- Empty -->
       <section
-        v-else
+        v-if="!metrics.length"
         class="empty-state"
       >
         <div>
@@ -290,13 +356,5 @@ onMounted(async () => {
         </div>
       </section>
     </template>
-
-    <!-- Toast -->
-    <div
-      v-if="toastMessage"
-      class="toast"
-    >
-      {{ toastMessage }}
-    </div>
   </div>
 </template>

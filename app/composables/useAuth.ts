@@ -18,6 +18,14 @@ export function useAuth() {
     return user.value
   }
 
+  function showToast(message: string) {
+    toastMessage.value = message
+
+    setTimeout(() => {
+      toastMessage.value = ""
+    }, 2800)
+  }
+
   async function passwordLogin(
     email: string,
     password: string,
@@ -57,7 +65,7 @@ export function useAuth() {
       })
 
       otpSent.value = true
-      toastMessage.value = "確認コードを送信しました"
+      showToast("確認コードを送信しました")
     } catch (error) {
       errors.value.push(getErrorMessage(error))
       throw error
@@ -111,7 +119,7 @@ export function useAuth() {
       })
 
       otpSent.value = true
-      toastMessage.value = "確認コードを送信しました"
+      showToast("確認コードを送信しました")
     } catch (error) {
       errors.value.push(getErrorMessage(error))
       throw error

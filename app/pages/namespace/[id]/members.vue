@@ -71,31 +71,13 @@ onMounted(async () => {
 
 <template>
   <div class="members-page">
-    <header class="header">
-      <div class="header-main">
-        <button
-          class="button secondary small"
-          type="button"
-          @click="handleBack"
-        >
-          ← 戻る
-        </button>
+    <AppHeader
+      :title="`Namespace ユーザー`"
+      :back="true"
+      @back="handleBack"
+    />
 
-        <h1>Namespace ユーザー</h1>
-      </div>
-    </header>
-
-    <div
-      v-if="errors.length"
-      class="error-banner"
-    >
-      <p
-        v-for="(error, index) in errors"
-        :key="index"
-      >
-        {{ error }}
-      </p>
-    </div>
+    <ErrorBanner :errors="errors" />
 
     <div class="info-box">
       登録済みユーザーのメールアドレスを指定して招待します。
@@ -217,11 +199,6 @@ onMounted(async () => {
       </div>
     </section>
 
-    <div
-      v-if="toastMessage"
-      class="toast"
-    >
-      {{ toastMessage }}
-    </div>
+    <Toast :message="toastMessage"/>
   </div>
 </template>

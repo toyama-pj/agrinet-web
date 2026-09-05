@@ -2,7 +2,8 @@
 const authMode = ref<"login" | "register">("login")
 const authMethod = ref<"password" | "code">("password")
 
-const authEmail = ref("")
+const authEmail = useState("auth-email", () => "")
+const loginEmail = useState("login-email", () => "")
 const authName = ref("")
 
 const {
@@ -38,23 +39,35 @@ const passkeyAvailable = computed(() => {
 })
 
 function switchAuthMode() {
-  authMode.value = isRegister.value
-    ? "login"
-    : "register"
+  if (isRegister.value) {
+    // 新規登録 → ログイン
+    authMode.value = "login"
+    authMethod.value = "password"
+    authEmail.value = loginEmail.value
+  } else {
+    // ログイン → 新規登録
+    loginEmail.value = authEmail.value
+    authMode.value = "register"
+    authMethod.value = "code"
+    authEmail.value = ""
+  }
 
-  authMethod.value = isRegister.value
-    ? "password"
-    : "code"
-
-  authEmail.value = ""
+  otpSent.value = false
+  errors.value = []
   authName.value = ""
 }
 
 function usePasswordLogin() {
+  otpSent.value = false
+  errors.value = []
+  authName.value = ""
   authMethod.value = "password"
 }
 
 function useCodeLogin() {
+  otpSent.value = false
+  errors.value = []
+  authName.value = ""
   authMethod.value = "code"
 }
 
@@ -66,6 +79,7 @@ async function submitPasswordLogin(event: Event) {
   const password = String(formData.get("password") ?? "")
 
   authEmail.value = email
+  loginEmail.value = email
 
   await passwordLogin(email, password)
 }
@@ -79,6 +93,7 @@ async function submitOTPForm(event: Event) {
   const code = String(formData.get("code") ?? "").trim()
 
   authEmail.value = email
+  loginEmail.value = email
   authName.value = name
 
   if (!otpSent.value) {
@@ -116,19 +131,7 @@ async function submitOTPForm(event: Event) {
       </div>
 
       <!-- エラー -->
-      <div
-        v-if="errors.length > 0"
-        class="error-banner"
-      >
-        <ul>
-          <li
-            v-for="error in errors"
-            :key="error"
-          >
-            {{ error }}
-          </li>
-        </ul>
-      </div>
+      <ErrorBanner :errors="errors" />
 
       <!-- パスキー -->
       <template
@@ -321,11 +324,6 @@ async function submitOTPForm(event: Event) {
     </div>
 
     <!-- Toast -->
-    <div
-      v-if="toastMessage"
-      class="toast"
-    >
-      {{ toastMessage }}
-    </div>
+    <Toast :message="toastMessage"/>
   </section>
 </template>

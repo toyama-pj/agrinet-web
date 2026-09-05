@@ -270,6 +270,14 @@ export function useSettings() {
       .replaceAll("=", "")
   }
 
+  console.log({
+  passkeyEnabled: passkeyEnabled.value,
+  isSecureContext: window.isSecureContext,
+  PublicKeyCredential: !!window.PublicKeyCredential,
+  credentials: !!navigator.credentials,
+  origin: window.location.origin,
+})
+
   return {
     email,
 

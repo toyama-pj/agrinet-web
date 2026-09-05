@@ -29,7 +29,6 @@ export function useNamespace() {
 
   const busy = ref(false)
   const errors = ref<string[]>([])
-  const toastMessage = ref("")
 
   const metrics = computed(() => {
     return groupMetrics(measurements.value)
@@ -39,7 +38,6 @@ export function useNamespace() {
     return namespace.value?.grant_type === "admin"
   })
 
-  /*
   function getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
       return error.message
@@ -52,41 +50,44 @@ export function useNamespace() {
     errors.value.push(getErrorMessage(error))
   }
 
-  function showToast(message: string) {
-    toastMessage.value = message
-
-    setTimeout(() => {
-      toastMessage.value = ""
-    }, 2800)
-  }
-  */
-
   async function loadNamespace(namespaceId: string) {
-  const [namespaceResponse, deviceResponse, measurementResponse] =
-    await Promise.all([
-      apiFetch<Namespace[]>(
-        "/cfg/me/namespace?limit=50",
-      ),
-      apiFetch<{ data: Device[] }>(
-        `/namespaces/${namespaceId}/devices`,
-      ),
-      apiFetch<MeasurementResponse>(
-        `/namespaces/${namespaceId}/measurements?limit=500`,
-      ),
-    ])
+    busy.value = true
+    errors.value = []
 
-  const foundNamespace = namespaceResponse.find(
-    item => item.namespace_id === namespaceId,
-  )
+    try {
+      const [
+        namespaceResponse,
+        deviceResponse,
+        measurementResponse,
+      ] = await Promise.all([
+        apiFetch<Namespace[]>(
+          "/cfg/me/namespace?limit=50",
+        ),
+        apiFetch<{ data: Device[] }>(
+          `/namespaces/${namespaceId}/devices`,
+        ),
+        apiFetch<MeasurementResponse>(
+          `/namespaces/${namespaceId}/measurements?limit=500`,
+        ),
+      ])
 
-  if (!foundNamespace) {
-    throw new Error("Namespaceが見つかりません")
+      const foundNamespace = namespaceResponse.find(
+        item => item.namespace_id === namespaceId,
+      )
+
+      if (!foundNamespace) {
+        throw new Error("Namespaceが見つかりません")
+      }
+
+      namespace.value = foundNamespace
+      devices.value = deviceResponse.data
+      measurements.value = measurementResponse.data
+    } catch (error) {
+      addError(error)
+    } finally {
+      busy.value = false
+    }
   }
-
-  namespace.value = foundNamespace
-  devices.value = deviceResponse.data
-  measurements.value = measurementResponse.data
-}
 
   function groupMetrics(
     values: Measurement[],
@@ -159,7 +160,6 @@ export function useNamespace() {
 
     busy,
     errors,
-    toastMessage,
 
     metrics,
     canManage,

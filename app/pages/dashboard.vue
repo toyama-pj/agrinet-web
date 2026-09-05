@@ -32,7 +32,7 @@ async function handleLogout() {
 }
 
 async function handleSettings() {
-  await router.push("/settings")
+  await router.push("/account-settings")
 }
 
 onMounted(async () => {
@@ -42,40 +42,28 @@ onMounted(async () => {
 
 <template>
   <div class="dashboard">
-    <header class="header">
-      <h1>{{ name }} の Device / Namespace</h1>
-
-      <div class="header-actions">
-        <button
-          class="button secondary small"
-          type="button"
-          @click="handleSettings"
-        >
-          設定
-        </button>
-
-        <button
-          class="button small"
-          type="button"
-          :disabled="busy"
-          @click="handleLogout"
-        >
-          ログアウト
-        </button>
-      </div>
-    </header>
-
-    <div
-      v-if="errors.length"
-      class="error-banner"
+    <AppHeader
+      :title="`${name} の Device / Namespace`"
     >
-      <p
-        v-for="(error, index) in errors"
-        :key="index"
+      <button
+        class="button secondary small"
+        type="button"
+        @click="handleSettings"
       >
-        {{ error }}
-      </p>
-    </div>
+        設定
+      </button>
+
+      <button
+        class="button small"
+        type="button"
+        :disabled="busy"
+        @click="handleLogout"
+      >
+        ログアウト
+      </button>
+    </AppHeader>
+
+    <ErrorBanner :errors="errors" />
 
     <div
       v-if="namespaces.length"
@@ -124,11 +112,6 @@ onMounted(async () => {
       </div>
     </section>
 
-    <div
-      v-if="toastMessage"
-      class="toast"
-    >
-      {{ toastMessage }}
-    </div>
+    <Toast :message="toastMessage"/>
   </div>
 </template>

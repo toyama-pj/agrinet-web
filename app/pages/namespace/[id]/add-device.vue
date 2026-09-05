@@ -45,31 +45,13 @@ async function handleBack() {
 
 <template>
   <div class="add-device-page">
-    <header class="header">
-      <div class="header-main">
-        <button
-          class="button secondary small"
-          type="button"
-          @click="handleBack"
-        >
-          ← 戻る
-        </button>
+    <AppHeader
+      :title="'Device を追加'"
+      :back="true"
+      @back="handleBack"
+    />
 
-        <h1>Device を追加</h1>
-      </div>
-    </header>
-
-    <div
-      v-if="errors.length"
-      class="error-banner"
-    >
-      <p
-        v-for="(error, index) in errors"
-        :key="index"
-      >
-        {{ error }}
-      </p>
-    </div>
+    <ErrorBanner :errors="errors" />
 
     <section class="form-card">
       <form
@@ -168,11 +150,6 @@ async function handleBack() {
       </form>
     </section>
 
-    <div
-      v-if="toastMessage"
-      class="toast"
-    >
-      {{ toastMessage }}
-    </div>
+    <Toast :message="toastMessage"/>
   </div>
 </template>
